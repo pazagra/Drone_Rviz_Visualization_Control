@@ -7,7 +7,7 @@ Python script Mov_Base.py is to process the camera output and obtain the directi
 
 Python script Viz_Main.py is to launch the a window that works under Rviz that gives information on the Dron, the possible movements and the ability of decide if the movement is correct or not.
 
-You need to download the Caffe model for the CNN of the Skeleton[1]. The command is:
+You need to download the Caffe model for the CNN of the Skeleton[1]. We use the python version of their code with some minor changes to obtain the skeleton. The command is:
 
 wget -nc --directory-prefix=model/ http://posefs1.perception.cs.cmu.edu/Users/ZheCao/pose_iter_440000.caffemodel
 
