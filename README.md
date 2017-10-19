@@ -9,6 +9,6 @@ Python script Viz_Main.py is to launch the a window that works under Rviz that g
 
 You need to download the Caffe model for the CNN of the Skeleton[1]. We use the python version of their code with some minor changes to obtain the skeleton. The command is:
 
-wget -nc --directory-prefix=model/ http://posefs1.perception.cs.cmu.edu/Users/ZheCao/pose_iter_440000.caffemodel
+wget -nc --directory-prefix=Model/ http://posefs1.perception.cs.cmu.edu/Users/ZheCao/pose_iter_440000.caffemodel
 
 [1]Realtime Multi-Person Pose Estimation. By Zhe Cao, Tomas Simon, Shih-En Wei, Yaser Sheikh. https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation
