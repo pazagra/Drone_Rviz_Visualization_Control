@@ -22,6 +22,28 @@ class skeleton:
         caffe.set_mode_gpu()
         self.net = caffe.Net(self.model['deployFile'], self.model['caffemodel'], caffe.TEST)
 
+
+    def draw_skeleton(self,canvas,skel):
+	limbSeq = [['chest', 'shoulder right'], ['chest', 'shoulder left'], ['shoulder right', 'arm right'], ['arm right', 'hand right'],['shoulder left', 'arm left'], ['arm left', 'hand left'], ['chest', 'hip right'], ['hip right', 'knee right'], ['knee right', 'foot right'],['chest', 'hip left'], ['hip left', 'knee left'], ['knee left', 'foot left'], ['chest', 'face'], ['face', 'eye right'], ['eye right', 'ear right'], ['face', 'eye left'], ['eye left', 'ear left'], ['shoulder right', 'ear right'], ['shoulder left', 'ear left']]
+	colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],		          [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],[170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+	stickwidth = 4
+	for x in range(17):
+	    index = limbSeq[x]
+	    if index[0] not in skel.keys() or index[1] not in skel.keys():
+	        continue
+	    cur_canvas = canvas.copy()
+	    Y = [skel[index[0]][1],skel[index[1]][1]]
+	    X = [skel[index[0]][0],skel[index[1]][0]]
+	    mX = np.mean(X)
+	    mY = np.mean(Y)
+	    length = ((X[0] - X[1]) ** 2 + (Y[0] - Y[1]) ** 2) ** 0.5
+	    angle = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
+	    polygon = cv.ellipse2Poly((int(mY), int(mX)), (int(length / 2), stickwidth), int(angle), 0, 360, 1)
+	    cv.fillConvexPoly(cur_canvas, polygon, colors[x])
+	    canvas = cv.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
+	return canvas
+
+
     def process_each_image(self, heatmap, paf, images):
         colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0], \
                   [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], \
@@ -193,6 +215,39 @@ class skeleton:
             if len(subset) == 0:
                 Results.append((None,None))
                 continue
+	    skel_size = []
+	    if len(subset) > 1:
+    		print "Two skeleton found, choosing the bigger"
+    		for n in range(len(subset)):
+    			x_min = 640
+    			y_min = 640
+    			x_max = 0
+    			y_max = 0
+    			for i in range(17):
+    				index = subset[n][np.array(limbSeq[i]) - 1]
+    				if -1 in index:
+    					continue
+				Y = candidate[index.astype(int), 0]
+				X = candidate[index.astype(int), 1]
+				x_min = min(X[0],X[1],x_min)
+				y_min = min(Y[0],Y[1],y_min)
+				x_max = max(X[0],X[1],x_max)
+				y_max = max(Y[0],Y[1],y_max)
+			dx = x_max - x_min
+			dy = y_max - y_min
+			size = dx*dy
+			skel_size.append(size)
+		n=0
+		s = skel_size[n]
+		for m in range(len(subset)):
+			if s<skel_size[m]:
+				n=m
+				s=skel_size[m]
+    	    else:
+		#choosing default skeleton		
+		n=0	
+
+
             stickwidth = 4
             for i in range(17):
                 n = 0
@@ -263,16 +318,11 @@ class skeleton:
             scale = multiplier[m]
             imageToTest = cv.resize(oriImg, (0, 0), fx=scale, fy=scale, interpolation=cv.INTER_CUBIC)
             imageToTest_padded, pad = util.padRightDownCorner(imageToTest, self.model['stride'], self.model['padValue'])
-
             self.net.blobs['data'].reshape(*(1, 3, imageToTest_padded.shape[0], imageToTest_padded.shape[1]))
-
             self.net.blobs['data'].data[...] = np.transpose(np.float32(imageToTest_padded[:, :, :, np.newaxis]),
                                                             (3, 2, 0, 1)) / 256 - 0.5
-          
             output_blobs = self.net.forward()
-         
-
-            # extract outputs, resize, and remove padding
+       
             heatmap = np.transpose(np.squeeze(self.net.blobs[output_blobs.keys()[1]].data),
                                    (1, 2, 0))  # output 1 is heatmaps
             heatmap = cv.resize(heatmap, (0, 0), fx=self.model['stride'], fy=self.model['stride'],
@@ -285,7 +335,6 @@ class skeleton:
             paf = paf[:imageToTest_padded.shape[0] - pad[2], :imageToTest_padded.shape[1] - pad[3], :]
             paf = cv.resize(paf, (oriImg.shape[1], oriImg.shape[0]), interpolation=cv.INTER_CUBIC)
 
-          
             heatmap_avg = heatmap_avg + heatmap / len(multiplier)
             paf_avg = paf_avg + paf / len(multiplier)
 
@@ -387,8 +436,7 @@ class skeleton:
             else:
                 special_k.append(k)
                 connection_all.append([])
-        # last number in each row is the total parts number of that person
-        # the second last number in each row is the score of the overall configuration
+
         subset = -1 * np.ones((0, 20))
         candidate = np.array([item for sublist in all_peaks for item in sublist])
 
@@ -451,13 +499,46 @@ class skeleton:
         l = []
         if subset.shape[0]==0:
             return None,None
+  
 
         for i in range(18):
             for j in range(len(all_peaks[i])):
                 l.append(i)
+      	skel_size = []
+	if len(subset) > 1:
+		print "Two skeleton found, choosing the bigger"
+		for n in range(len(subset)):
+			x_min = 640
+			y_min = 640
+			x_max = 0
+			y_max = 0
+			for i in range(17):
+				index = subset[n][np.array(limbSeq[i]) - 1]
+				if -1 in index:
+					continue
+				Y = candidate[index.astype(int), 0]
+				X = candidate[index.astype(int), 1]
+				x_min = min(X[0],X[1],x_min)
+				y_min = min(Y[0],Y[1],y_min)
+				x_max = max(X[0],X[1],x_max)
+				y_max = max(Y[0],Y[1],y_max)
+			dx = x_max - x_min
+			dy = y_max - y_min
+			size = dx*dy
+			skel_size.append(size)
+		n=0
+		s = skel_size[n]
+		for m in range(len(subset)):
+			if s<skel_size[m]:
+				n=m
+				s=skel_size[m]
+	else:
+		#choosing default skeleton		
+		n=0	
+
         stickwidth = 4
         for i in range(17):
-            n = 0
+            # for n in range(len(subset)):
             index = subset[n][np.array(limbSeq[i]) - 1]
             if -1 in index:
                 continue

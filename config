@@ -27,8 +27,8 @@ bbox_ratio = 0.25
 ## don't edit this part
 
 [[1]]
-caffemodel = './Model/pose_iter_440000.caffemodel'
-deployFile = './Model/pose_deploy.prototxt'
+caffemodel = './model/pose_iter_440000.caffemodel'
+deployFile = './model/pose_deploy.prototxt'
 description = 'COCO Pose56 Two-level Linevec'
 boxsize = 368
 padValue = 128
