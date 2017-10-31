@@ -18,8 +18,11 @@ from scipy.ndimage.filters import gaussian_filter
 class skeleton:
     def __init__(self):
         self.param, self.model = config_reader()
-	caffe.set_device(0)
-        caffe.set_mode_gpu()
+	if self.param['use_gpu'] == 1:
+		caffe.set_device(0)
+		caffe.set_mode_gpu()
+	else:
+		caffe.set_mode_cpu()
         self.net = caffe.Net(self.model['deployFile'], self.model['caffemodel'], caffe.TEST)
 
 
